@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App de Alumnos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div id="app">
+            <div class="row">
+                <div class="col">::.. SISTEMA DE ALUMNOS .::</div>
+            </div>
+            <div class="row">
+                <div class="col col-md-6">
+                    <div class="row p-1">
+                        <div class="col col-md-2">CODIGO</div>
+                        <div class="col col-md-3">
+                            <input v-model="alumno.codigo" type="text" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row p-1">
+                        <div class="col col-md-2">NOMBRE</div>
+                        <div class="col col-md-5">
+                            <input v-model="alumno.nombre" type="text" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row p-1">
+                        <div class="col col-md-2">CARRERA</div>
+                        <div class="col col-md-5">
+                            <input v-model="alumno.carrera" type="text" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row p-1">
+                        <div class="col col-md-2">MODALIDAD</div>
+                        <div class="col col-md-3">
+                            <input v-model="alumno.modalidad" type="text" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row p-1">
+                        <div class="col col-md-2">MATERIAS</div>
+                        <div class="col col-md-3">
+                            <input v-model="alumno.materias" type="number" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row p-1">
+                        <div class="col">
+                            <button @click.prevent.default="guardaralumno" class="btn btn-success">GUARDAR</button>
+                            <button @click.prevent.default="nuevoalumno" class="btn btn-warning">NUEVO</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col col-md-6">
+                    <form id="frmalumno">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>BUSCAR</th>
+                                    <th colspan="5">
+                                        <input placeholder="codigo, nombre, carrera, modalidad" type="search" v-model="valor" @keyup="buscaralumno" class="form-control">
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th>CODIGO</th>
+                                    <th>NOMBRE</th>
+                                    <th>CARRERA</th>
+                                    <th>MODALIDAD</th>
+                                    <th>MATERIAS</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr @click="modificaralumno(alumno)" v-for="alumno in alumnos" :key="alumno.idalumno">
+                                    <td>{{alumno.codigo}}</td>
+                                    <td>{{alumno.nombre}}</td>
+                                    <td>{{alumno.carrera}}</td>
+                                    <td>{{alumno.modalidad}}</td>
+                                    <td>{{alumno.materias}}</td>
+                                    <td><button @click.prevent.default="eliminaralumno(alumno.idalumno)" class="btn btn-danger">del</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+            <script src="db.js"></script>
+            <script>
+                var app = new Vue({
+                    el: '#app',
+                    data: {
+                        valor: '',
+                        alumnos: [],
+                        accion: 'nuevo',
+                        alumno: {
+                            idalumno: new Date().getTime(),
+                            codigo: '',
+                            nombre: '',
+                            carrera: '',
+                            modalidad: '',
+                            materias: 0
+                        }
+                    },
+                    methods: {
+                        buscaralumno(e) {
+                            this.listaralumnos();
+                        },
+                        eliminaralumno(idalumno) {
+                            if (confirm(`¿Está seguro de eliminar el alumno?`)) {
+                                let store = abrirStore('alumnos', 'readwrite');
+                                let query = store.delete(idalumno);
+                                query.onsuccess = e => {
+                                    this.nuevoalumno();
+                                    this.listaralumnos(); // Consider adding this line to update the list immediately after deleting.
+                                };
+                            }
+                        },
+                        modificaralumno(alumno) {
+                            this.accion = 'modificar';
+                            this.alumno = alumno;
+                        },
+                        guardaralumno() {
+                            // Almacenamiento del objeto alumnos en indexedDB
+                            let store = abrirStore('alumnos', 'readwrite');
+                            try {
+                                let query = store.put({ ...this.alumno });
+                                query.onsuccess = e => {
+                                    this.nuevoalumno();
+                                    this.listaralumnos(); // Consider adding this line to update the list immediately after saving.
+                                };
+                            } catch (error) {
+                                console.error('Error al guardar en alumnos', error.message);
+                            }
+                        },
+                        nuevoalumno() {
+                            this.accion = 'nuevo';
+                            this.alumno = {
+                                idalumno: new Date().getTime(),
+                                codigo: '',
+                                nombre: '',
+                                carrera: '',
+                                modalidad: '',
+                                materias: 0
+                            };
+                        },
+                        listaralumnos() {
+                            let store = abrirStore('alumnos', 'readonly');
+                            let data = store.getAll();
+                            data.onsuccess = resp => {
+                                this.alumnos = data.result
+                                    .filter(alumno => alumno.codigo.includes(this.valor) ||
+                                        alumno.nombre.toLowerCase().includes(this.valor.toLowerCase()) ||
+                                        alumno.carrera.toLowerCase().includes(this.valor.toLowerCase()) ||
+                                        alumno.modalidad.toLowerCase().includes(this.valor.toLowerCase()));
+                            };
+                        }
+                    },
+                    created() {
+                        this.listaralumnos(); // Uncomment this line if you want to initially load the data.
+                    }
+                });
+            </script>
+        </div>
+    </div>
+</body>
+</html>
